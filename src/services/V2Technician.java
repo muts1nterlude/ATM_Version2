@@ -2,13 +2,15 @@ package services;
 
 import core.ATMState;
 import interfaces.Persistence;
+import interfaces.TechActions;
 
-public class V2Technician extends V1Technician {
+public class V2Technician implements TechActions {
 
+    private ATMState state;              
     private Persistence persistence;
 
     public V2Technician(ATMState state, Persistence persistence) {
-        super(state);
+        this.state = state;              
         this.persistence = persistence;
     }
 
@@ -17,6 +19,7 @@ public class V2Technician extends V1Technician {
         state.displayDiagnostics();
     }
 
+    @Override
     public void addCash(double amount) {
         if (state.addCash(amount)) {
             System.out.println("SUCCESS: $" + String.format("%.2f", amount) + " added to cash supply");
@@ -42,7 +45,9 @@ public class V2Technician extends V1Technician {
     @Override
     public void refillPaper() {
         state.getPaperTank().refill(500);
-        System.out.println("SUCCESS: Paper refilled to " + state.getPaperTank().getPaperCount() + " sheets");
+        System.out.println(
+            "SUCCESS: Paper refilled to " + state.getPaperTank().getPaperCount() + " sheets"
+        );
         persistence.saveATMState(state);
     }
 
@@ -54,6 +59,7 @@ public class V2Technician extends V1Technician {
         persistence.saveATMState(state);
     }
 
+    @Override
     public void performMaintenance() {
         state.performMaintenance();
         persistence.saveATMState(state);
@@ -78,8 +84,7 @@ public class V2Technician extends V1Technician {
 
     public void checkSystemHealth() {
         System.out.println("\n========== SYSTEM HEALTH CHECK ==========");
-        
-        // Cash check
+
         System.out.print("Cash Level: ");
         if (state.isLowOnCash()) {
             System.out.println("⚠ LOW - Refill required!");
@@ -89,7 +94,6 @@ public class V2Technician extends V1Technician {
             System.out.println("✓ NORMAL");
         }
 
-        // Paper check
         System.out.print("Paper Level: ");
         if (state.getPaperTank().isEmpty()) {
             System.out.println("✗ CRITICAL - Out of paper!");
@@ -99,8 +103,9 @@ public class V2Technician extends V1Technician {
             System.out.println("✓ NORMAL");
         }
 
-        // Operational check
-        System.out.println("ATM Status: " + (state.isOperational() ? "✓ OPERATIONAL" : "✗ OUT OF SERVICE"));
+        System.out.println(
+            "ATM Status: " + (state.isOperational() ? "✓ OPERATIONAL" : "✗ OUT OF SERVICE")
+        );
         System.out.println("=========================================\n");
     }
 }
