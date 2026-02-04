@@ -15,6 +15,7 @@ public class Account {
     private double dailyWithdrawalUsed;
     private LocalDate lastWithdrawalDate;
     private List<Transaction> transactionHistory;
+
     private static final double WITHDRAWAL_FEE = 2.50;
     private static final double TRANSFER_FEE = 1.00;
     private static final double DEFAULT_DAILY_LIMIT = 500.0;
@@ -28,6 +29,11 @@ public class Account {
         this.dailyWithdrawalUsed = 0;
         this.lastWithdrawalDate = LocalDate.now();
         this.transactionHistory = new ArrayList<>();
+    }
+
+    // FOR UNIT TEST
+    public boolean validatePin(String inputPin) {
+        return this.pin.equals(inputPin);
     }
 
     public String getCardNumber() { return cardNumber; }
@@ -55,18 +61,15 @@ public class Account {
             throw new IllegalArgumentException("Withdrawal amount must be positive");
         }
 
-        // Reset daily counter if it's a new day
         if (!lastWithdrawalDate.equals(LocalDate.now())) {
             dailyWithdrawalUsed = 0;
             lastWithdrawalDate = LocalDate.now();
         }
 
-        // Check daily limit
         if (dailyWithdrawalUsed + amount > dailyWithdrawalLimit) {
             return false;
         }
 
-        // Check balance with fee
         double totalAmount = amount + WITHDRAWAL_FEE;
         if (totalAmount > balance) {
             return false;
@@ -89,7 +92,8 @@ public class Account {
         }
 
         balance -= totalAmount;
-        addTransaction("TRANSFER_OUT", amount, "Transfer to: " + recipientCard + " | Fee: $" + TRANSFER_FEE);
+        addTransaction("TRANSFER_OUT", amount,
+                "Transfer to: " + recipientCard + " | Fee: $" + TRANSFER_FEE);
         return true;
     }
 
@@ -107,13 +111,16 @@ public class Account {
 
     public void printTransactionHistory(int limit) {
         System.out.println("\n========== TRANSACTION HISTORY ==========");
-        System.out.println("Last " + Math.min(limit, transactionHistory.size()) + " transactions:\n");
         int count = 0;
         for (int i = transactionHistory.size() - 1; i >= 0 && count < limit; i--) {
             System.out.println(transactionHistory.get(i));
             count++;
         }
         System.out.println("=========================================\n");
+    }
+
+    public void setPin(String newPin) {
+        this.pin = newPin;
     }
 
     public static class Transaction {

@@ -17,7 +17,7 @@ public class Main {
 
             displayWelcomeScreen();
 
-            while (!isLoggedIn && sc.hasNextLine()) {
+            while (!isLoggedIn) {
                 String input = sc.nextLine().trim();
                 if (input.equalsIgnoreCase("1")) {
                     customerLogin();
@@ -43,8 +43,7 @@ public class Main {
     }
 
     private static void displayWelcomeScreen() {
-        System.out.println("\n");
-        System.out.println("====================================");
+        System.out.println("\n====================================");
         System.out.println("   WELCOME TO PROFESSIONAL ATM      ");
         System.out.println("        Version 2.0                 ");
         System.out.println("====================================");
@@ -55,6 +54,7 @@ public class Main {
         System.out.print("Enter choice: ");
     }
 
+    // ================== Customer Login ==================
     private static void customerLogin() {
         System.out.println("\n========== CUSTOMER LOGIN ==========");
         System.out.print("Insert Card Number: ");
@@ -72,6 +72,7 @@ public class Main {
         }
     }
 
+    // ================== Technician Login ==================
     private static void technicianLogin(JsonHandler persistence) {
         System.out.println("\n========== TECHNICIAN LOGIN ==========");
         System.out.print("Username: ");
@@ -90,6 +91,7 @@ public class Main {
         }
     }
 
+    // ================== Customer Menu ==================
     private static void showCustomerMenu() {
         while (isLoggedIn) {
             System.out.println("\n========== MAIN MENU ==========");
@@ -105,30 +107,18 @@ public class Main {
             String choice = sc.nextLine().trim();
 
             switch (choice) {
-                case "1":
-                    atm.checkBalance();
-                    break;
-                case "2":
-                    handleWithdraw();
-                    break;
-                case "3":
-                    handleDeposit();
-                    break;
-                case "4":
-                    handleTransfer();
-                    break;
-                case "5":
-                    atm.viewTransactionHistory();
-                    break;
-                case "6":
-                    handlePinChange();
-                    break;
+                case "1": atm.checkBalance(); break;
+                case "2": handleWithdraw(); break;
+                case "3": handleDeposit(); break;
+                case "4": handleTransfer(); break;
+                case "5": atm.viewTransactionHistory(); break;
+                case "6": handlePinChange(); break;
                 case "7":
                     System.out.println("Thank you for using our ATM. Please take your card.");
                     isLoggedIn = false;
+                    displayWelcomeScreen();
                     break;
-                default:
-                    System.out.println("Invalid option. Please try again.");
+                default: System.out.println("Invalid option. Please try again.");
             }
         }
     }
@@ -151,16 +141,10 @@ public class Main {
             case "5": amount = 500; break;
             case "6":
                 System.out.print("Enter amount: $");
-                try {
-                    amount = Double.parseDouble(sc.nextLine().trim());
-                } catch (NumberFormatException e) {
-                    System.out.println("Invalid amount.");
-                    return;
-                }
+                try { amount = Double.parseDouble(sc.nextLine().trim()); }
+                catch (NumberFormatException e) { System.out.println("Invalid amount."); return; }
                 break;
-            default:
-                System.out.println("Invalid option.");
-                return;
+            default: System.out.println("Invalid option."); return;
         }
 
         atm.withdraw(amount);
@@ -198,8 +182,9 @@ public class Main {
         atm.changePin(newPin);
     }
 
+    // ================== Technician Menu ==================
     private static void showTechnicianMenu(JsonHandler persistence) {
-        V2Technician tech = new V2Technician(persistence.loadATMState(), persistence);
+        V2Technician tech = new V2Technician(persistence);
         boolean inTechMenu = true;
 
         while (inTechMenu) {
@@ -217,42 +202,25 @@ public class Main {
             String choice = sc.nextLine().trim();
 
             switch (choice) {
-                case "1":
-                    tech.displayStatus();
-                    break;
-                case "2":
-                    tech.refillPaper();
-                    System.out.println("Paper refilled successfully!");
-                    break;
+                case "1": tech.displayStatus(); break;
+                case "2": tech.refillPaper(); break;
                 case "3":
                     System.out.print("Enter cash amount to add: $");
                     try {
                         double amount = Double.parseDouble(sc.nextLine().trim());
                         tech.addCash(amount);
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid amount.");
-                    }
+                    } catch (NumberFormatException e) { System.out.println("Invalid amount."); }
                     break;
-                case "4":
-                    tech.collectCash();
-                    break;
-                case "5":
-                    tech.updateFirmware();
-                    break;
-                case "6":
-                    tech.viewEventLog();
-                    break;
-                case "7":
-                    tech.performMaintenance();
-                    System.out.println("Maintenance completed!");
-                    break;
+                case "4": tech.collectCash(); break;
+                case "5": tech.updateFirmware(); break;
+                case "6": tech.viewEventLog(); break;
+                case "7": tech.performMaintenance(); break;
                 case "8":
                     System.out.println("Technician logged out.");
                     inTechMenu = false;
                     displayWelcomeScreen();
                     break;
-                default:
-                    System.out.println("Invalid option.");
+                default: System.out.println("Invalid option.");
             }
         }
     }

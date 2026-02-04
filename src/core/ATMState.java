@@ -5,7 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ATMState {
-    private double cashAvailable;
+    // Banknote counts
+    private int count100;
+    private int count50;
+    private int count20;
+
     private String firmwareVersion;
     private PaperTank paperTank;
     private boolean isOperational;
@@ -17,8 +21,10 @@ public class ATMState {
     private static final double MAXIMUM_CASH_CAPACITY = 50000.0;
     private static final double MINIMUM_CASH_THRESHOLD = 500.0;
 
-    public ATMState(double cashAvailable, String firmwareVersion, PaperTank paperTank) {
-        this.cashAvailable = cashAvailable;
+    public ATMState(int c100, int c50, int c20, String firmwareVersion, PaperTank paperTank) {
+        this.count100 = c100;
+        this.count50 = c50;
+        this.count20 = c20;
         this.firmwareVersion = firmwareVersion;
         this.paperTank = paperTank;
         this.isOperational = true;
@@ -27,140 +33,119 @@ public class ATMState {
         this.totalTransactionsProcessed = 0;
         this.totalAmountDispensed = 0;
         this.eventLog = new ArrayList<>();
-        logEvent("ATM_INITIALIZED", "Cash: $" + cashAvailable + " | Firmware: " + firmwareVersion);
+        logEvent("ATM_INITIALIZED", "System ready with mixed denominations.");
     }
 
-    public double getCashAvailable() { 
-        return cashAvailable; 
+    // Keep your existing constructor, but ADD this one below it:
+    public ATMState(double cashAvailable, String firmwareVersion, PaperTank paperTank) {
+        this.count100 = 0;
+        this.count50 = (int) (cashAvailable / 50); // Distribute total cash into $50 notes
+        this.count20 = 0;
+        this.firmwareVersion = firmwareVersion;
+        this.paperTank = paperTank;
+        this.isOperational = true;
+        this.lastMaintenanceDate = LocalDateTime.now();
+        this.lastCashRefillDate = LocalDateTime.now();
+        this.eventLog = new ArrayList<>();
     }
 
-    public boolean addCash(double amount) {
-        if (amount < 0 || (cashAvailable + amount) > MAXIMUM_CASH_CAPACITY) {
-            logEvent("CASH_ADDITION_FAILED", "Amount: $" + amount);
-            return false;
-        }
-        cashAvailable += amount;
-        lastCashRefillDate = LocalDateTime.now();
-        logEvent("CASH_ADDED", "$" + amount);
-        return true;
-    }
-
-    public boolean addCashDeposit(double amount) {
-        return addCash(amount);
+    // Keep this so ATMService doesn't break!
+    public double getCashAvailable() {
+        return (count100 * 100) + (count50 * 50) + (count20 * 20);
     }
 
     public boolean dispenseCash(double amount) {
-        if (amount > cashAvailable) {
-            logEvent("CASH_DISPENSING_FAILED", "Requested: $" + amount + " | Available: $" + cashAvailable);
-            return false;
+        int remaining = (int) amount;
+
+        // Validation: Must be a multiple of the smallest note
+        if (remaining % 10 != 0 || remaining > getCashAvailable()) return false;
+
+        // Greedy algorithm to calculate notes
+        int t100 = Math.min(remaining / 100, count100);
+        int remAfter100 = remaining - (t100 * 100);
+
+        int t50 = Math.min(remAfter100 / 50, count50);
+        int remAfter50 = remAfter100 - (t50 * 50);
+
+        int t20 = Math.min(remAfter50 / 20, count20);
+        int remAfter20 = remAfter50 - (t20 * 20);
+
+        // Success only if we reached exactly zero
+        if (remAfter20 == 0) {
+            this.count100 -= t100;
+            this.count50 -= t50;
+            this.count20 -= t20;
+            this.totalAmountDispensed += amount;
+            this.totalTransactionsProcessed++;
+            logEvent("CASH_DISPENSED", String.format("Dispensed: $100x%d, $50x%d, $20x%d", t100, t50, t20));
+            return true;
         }
-        if ((cashAvailable - amount) < MINIMUM_CASH_THRESHOLD) {
-            logEvent("LOW_CASH_WARNING", "Remaining: $" + (cashAvailable - amount));
-        }
-        cashAvailable -= amount;
-        totalAmountDispensed += amount;
-        totalTransactionsProcessed++;
-        logEvent("CASH_DISPENSED", "$" + amount);
+        return false;
+    }
+
+    // Updated to handle note-based deposits
+    public boolean addCash(int c100, int c50, int c20) {
+        double newTotal = getCashAvailable() + (c100 * 100) + (c50 * 50) + (c20 * 20);
+        if (newTotal > MAXIMUM_CASH_CAPACITY) return false;
+
+        this.count100 += c100;
+        this.count50 += c50;
+        this.count20 += c20;
+        this.lastCashRefillDate = LocalDateTime.now();
         return true;
     }
 
-    public void performMaintenance() {
-        lastMaintenanceDate = LocalDateTime.now();
-        logEvent("MAINTENANCE_PERFORMED", "System checked and verified");
+    // For compatibility with your existing interfaces
+    public boolean addCash(double totalAmount) {
+        // Fallback: assume deposit is mostly 50s and 20s if just a double is given
+        return addCash(0, (int)totalAmount/50, (int)(totalAmount%50)/20);
     }
 
-    public boolean isLowOnCash() {
-        return cashAvailable < MINIMUM_CASH_THRESHOLD;
-    }
+    public boolean addCashDeposit(double amount) { return addCash(amount); }
 
-    public boolean isNearCapacity() {
-        return cashAvailable > (MAXIMUM_CASH_CAPACITY * 0.9);
-    }
-
-    public PaperTank getPaperTank() { 
-        return paperTank; 
-    }
-
-    public String getFirmwareVersion() { 
-        return firmwareVersion; 
-    }
-
-    public void updateFirmware(String version) { 
-        firmwareVersion = version;
-        logEvent("FIRMWARE_UPDATED", "New version: " + version);
-    }
-
-    public boolean isOperational() {
-        return isOperational && !paperTank.isEmpty();
-    }
-
-    public void setOperational(boolean operational) {
-        this.isOperational = operational;
-        logEvent(operational ? "ATM_ENABLED" : "ATM_DISABLED", "");
-    }
-
-    public LocalDateTime getLastMaintenanceDate() {
-        return lastMaintenanceDate;
-    }
-
-    public LocalDateTime getLastCashRefillDate() {
-        return lastCashRefillDate;
-    }
-
-    public int getTotalTransactionsProcessed() {
-        return totalTransactionsProcessed;
-    }
-
-    public double getTotalAmountDispensed() {
-        return totalAmountDispensed;
-    }
+    // ... Keep all other methods (isOperational, displayDiagnostics, etc.) exactly as they were ...
 
     public void displayDiagnostics() {
         System.out.println("\n========== ATM DIAGNOSTICS ==========");
         System.out.println("Status: " + (isOperational ? "OPERATIONAL" : "OUT OF SERVICE"));
-        System.out.println("Cash Available: $" + String.format("%.2f", cashAvailable));
-        System.out.println("Cash Level: " + getCashPercentage() + "%");
+        System.out.println("Total Cash: $" + String.format("%.2f", getCashAvailable()));
+        System.out.println("Inventory: [$100 x " + count100 + "] [$50 x " + count50 + "] [$20 x " + count20 + "]");
         System.out.println("Paper Tank: " + paperTank.getPaperCount() + " sheets");
-        System.out.println("Firmware Version: " + firmwareVersion);
-        System.out.println("Total Transactions: " + totalTransactionsProcessed);
-        System.out.println("Total Dispensed: $" + String.format("%.2f", totalAmountDispensed));
-        System.out.println("Last Maintenance: " + lastMaintenanceDate);
-        System.out.println("Last Cash Refill: " + lastCashRefillDate);
-        if (isLowOnCash()) System.out.println("WARNING: Low cash level!");
-        if (paperTank.isEmpty()) System.out.println("WARNING: Out of paper!");
         System.out.println("=====================================\n");
-    }
-
-    private int getCashPercentage() {
-        return (int) ((cashAvailable / MAXIMUM_CASH_CAPACITY) * 100);
     }
 
     private void logEvent(String eventType, String details) {
         eventLog.add(new ATMEvent(eventType, details));
     }
 
-    public void displayEventLog() {
-        System.out.println("\n========== EVENT LOG ==========");
-        for (ATMEvent event : eventLog) {
-            System.out.println(event);
-        }
-        System.out.println("===============================\n");
+    public void addCash(int denomination, int count) {
+    }
+
+    public String getFirmwareVersion() {
+        return this.firmwareVersion;
     }
 
     public static class ATMEvent {
         private LocalDateTime timestamp;
         private String eventType;
         private String details;
-
         public ATMEvent(String eventType, String details) {
             this.timestamp = LocalDateTime.now();
             this.eventType = eventType;
             this.details = details;
         }
-
         @Override
-        public String toString() {
-            return String.format("[%s] %s - %s", timestamp, eventType, details);
-        }
+        public String toString() { return String.format("[%s] %s - %s", timestamp, eventType, details); }
+    }
+
+    public PaperTank getPaperTank() { return paperTank; }
+    public boolean isOperational() { return isOperational && !paperTank.isEmpty(); }
+    public void setOperational(boolean op) { this.isOperational = op; }
+    public void performMaintenance() { this.lastMaintenanceDate = LocalDateTime.now(); }
+    public void updateFirmware(String v) { this.firmwareVersion = v; }
+    public boolean isLowOnCash() { return getCashAvailable() < MINIMUM_CASH_THRESHOLD; }
+    public boolean isNearCapacity() { return getCashAvailable() > (MAXIMUM_CASH_CAPACITY * 0.9); }
+    public void displayEventLog() {
+        for(ATMEvent e : eventLog) System.out.println(e);
     }
 }
