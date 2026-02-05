@@ -1,9 +1,7 @@
 import core.Account;
 
 public class AccountPinUnitTest {
-
     public static void main(String[] args) {
-
         Account account = new Account("1234567890", "1234", 500);
 
         boolean correct = account.validatePin("1234");
