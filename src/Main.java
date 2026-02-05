@@ -84,10 +84,9 @@ public class Main {
         AuthService auth = new AuthService();
         if (auth.authenticate(username, password)) {
             System.out.println("Technician login successful!");
+            // RELOAD state from JSON before entering menu to ensure fresh data
+            atm.reloadState();
             showTechnicianMenu(persistence);
-        } else {
-            System.out.println("Invalid credentials.\n");
-            displayWelcomeScreen();
         }
     }
 

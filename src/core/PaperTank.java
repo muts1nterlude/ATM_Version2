@@ -23,9 +23,6 @@ public class PaperTank {
         return paperCount == 0;
     }
 
-    public void refill(int amount) {
-        paperCount += amount;
-    }
 
     public int getPaperCount() {
         return paperCount;
@@ -34,5 +31,14 @@ public class PaperTank {
 
     public int getSheets() {
         return this.paperCount;
+    }
+    public void refill() {
+        this.paperCount = 500; // Resetting to a full tank
+    }
+
+    public void usePaper(int amount) {
+        if (this.paperCount >= amount) {
+            this.paperCount -= amount;
+        }
     }
 }

@@ -51,27 +51,36 @@ public class ATMService {
         System.out.println("=========================================\n");
     }
 
-    // FIXED: Only ONE withdraw method now
     public boolean withdraw(double amount) {
         try {
+            // CRITICAL FIX: Reload the state from JSON so the Customer
+            // sees the paper/cash refilled by the Technician.
+            reloadState();
+
             if (amount <= 0) {
                 System.out.println("ERROR: Withdrawal amount must be positive.");
                 return false;
             }
 
-            // Validation for banknotes (Smallest note is $20, so must be multiple of 10 or 20)
+            // Validation for banknotes
             if (amount % 10 != 0) {
                 System.out.println("ERROR: This ATM only dispenses $20, $50, and $100 bills.");
                 return false;
             }
 
-            // 1. Try to dispense physical cash first
+            // 1. Check Paper Level BEFORE starting transaction
+            if (atmState.getPaperTank().isEmpty()) {
+                System.out.println("ERROR: ATM out of paper. Transaction cancelled to ensure receipt printing.");
+                return false;
+            }
+
+            // 2. Try to dispense physical cash first
             if (!atmState.dispenseCash(amount)) {
                 System.out.println("ERROR: ATM cannot dispense this amount with available bills.");
                 return false;
             }
 
-            // 2. Try to deduct from digital account
+            // 3. Try to deduct from digital account
             if (!account.withdraw(amount)) {
                 // REVERT physical cash if bank balance check fails
                 atmState.addCash(amount);
@@ -79,10 +88,14 @@ public class ATMService {
                 return false;
             }
 
-            printReceipt("WITHDRAWAL", amount);
+            // 4. Use 1 sheet of paper for the receipt
+            atmState.getPaperTank().usePaper(1);
+
+            // 5. Save everything to persistence
             persistence.saveAccount(account);
             persistence.saveATMState(atmState);
-            System.out.println("SUCCESS: Please collect your cash.");
+
+            System.out.println("SUCCESS: Please collect your cash. Receipt printed.");
             return true;
         } catch (Exception e) {
             System.out.println("ERROR: Withdrawal failed - " + e.getMessage());
@@ -138,6 +151,12 @@ public class ATMService {
         account.printTransactionHistory(10);
     }
 
+    public void reloadState() {
+        this.atmState = persistence.loadATMState();
+    }
+
+
+
     public void changePin(String newPin) {
         if (newPin != null && newPin.length() >= 4) {
             account.setPin(newPin);
@@ -148,15 +167,24 @@ public class ATMService {
         }
     }
 
-    private void printReceipt(String type, double amount) {
-        if (atmState.getPaperTank().useOne()) {
-            System.out.println("\n--- RECEIPT: " + type + " ---");
-            System.out.println("Amount: $" + amount);
-            System.out.println("Balance: $" + account.getBalance());
-            System.out.println("---------------------------\n");
-        } else {
-            System.out.println("WARNING: Receipt could not be printed (No Paper).");
+    private void printReceipt(String transactionType, double amount) {
+        // 1. Check if we have paper before printing
+        if (atmState.getPaperTank().isEmpty()) {
+            System.out.println("ALERT: Receipt could not be printed (Out of Paper).");
+            return;
         }
+
+        // 2. Display the receipt to the console
+        System.out.println("\n------- RECEIPT -------");
+        System.out.println("Type:    " + transactionType);
+        System.out.println("Amount:  $" + String.format("%.2f", amount));
+        System.out.println("Balance: $" + String.format("%.2f", account.getBalance()));
+        System.out.println("Date:    " + java.time.LocalDateTime.now());
+        System.out.println("-----------------------\n");
+
+        // 3. Deduct the paper and save the state
+        atmState.getPaperTank().usePaper(1);
+        persistence.saveATMState(atmState);
     }
 
     private String maskCardNumber(String card) {

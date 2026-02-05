@@ -31,7 +31,6 @@ public class Account {
         this.transactionHistory = new ArrayList<>();
     }
 
-    // FOR UNIT TEST
     public boolean validatePin(String inputPin) {
         return this.pin.equals(inputPin);
     }

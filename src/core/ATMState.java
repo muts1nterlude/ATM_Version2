@@ -9,6 +9,7 @@ public class ATMState {
     private int count100;
     private int count50;
     private int count20;
+    private int inkLevel;
 
     private String firmwareVersion;
     private PaperTank paperTank;
@@ -25,6 +26,7 @@ public class ATMState {
         this.count100 = c100;
         this.count50 = c50;
         this.count20 = c20;
+        this.inkLevel = 15;
         this.firmwareVersion = firmwareVersion;
         this.paperTank = paperTank;
         this.isOperational = true;
@@ -36,7 +38,7 @@ public class ATMState {
         logEvent("ATM_INITIALIZED", "System ready with mixed denominations.");
     }
 
-    // Keep your existing constructor, but ADD this one below it:
+
     public ATMState(double cashAvailable, String firmwareVersion, PaperTank paperTank) {
         this.count100 = 0;
         this.count50 = (int) (cashAvailable / 50); // Distribute total cash into $50 notes
@@ -49,7 +51,6 @@ public class ATMState {
         this.eventLog = new ArrayList<>();
     }
 
-    // Keep this so ATMService doesn't break!
     public double getCashAvailable() {
         return (count100 * 100) + (count50 * 50) + (count20 * 20);
     }
@@ -82,8 +83,7 @@ public class ATMState {
         }
         return false;
     }
-
-    // Updated to handle note-based deposits
+    //note-based deposits
     public boolean addCash(int c100, int c50, int c20) {
         double newTotal = getCashAvailable() + (c100 * 100) + (c50 * 50) + (c20 * 20);
         if (newTotal > MAXIMUM_CASH_CAPACITY) return false;
@@ -95,7 +95,6 @@ public class ATMState {
         return true;
     }
 
-    // For compatibility with your existing interfaces
     public boolean addCash(double totalAmount) {
         // Fallback: assume deposit is mostly 50s and 20s if just a double is given
         return addCash(0, (int)totalAmount/50, (int)(totalAmount%50)/20);
@@ -103,11 +102,14 @@ public class ATMState {
 
     public boolean addCashDeposit(double amount) { return addCash(amount); }
 
-    // ... Keep all other methods (isOperational, displayDiagnostics, etc.) exactly as they were ...
-
+    public int getInkLevel() { return inkLevel; }
+    public void setInkLevel(int inkLevel) { this.inkLevel = inkLevel; }
     public void displayDiagnostics() {
+
         System.out.println("\n========== ATM DIAGNOSTICS ==========");
         System.out.println("Status: " + (isOperational ? "OPERATIONAL" : "OUT OF SERVICE"));
+        System.out.println("Firmware: " + firmwareVersion);
+        System.out.println("Ink Level: [" + inkLevel + "%]");
         System.out.println("Total Cash: $" + String.format("%.2f", getCashAvailable()));
         System.out.println("Inventory: [$100 x " + count100 + "] [$50 x " + count50 + "] [$20 x " + count20 + "]");
         System.out.println("Paper Tank: " + paperTank.getPaperCount() + " sheets");
@@ -119,7 +121,12 @@ public class ATMState {
     }
 
     public void addCash(int denomination, int count) {
+        if (denomination == 100) this.count100 += count;
+        else if (denomination == 50) this.count50 += count;
+        else if (denomination == 20) this.count20 += count;
+        logEvent("CASH_ADDED", "Technician added " + count + " notes of $" + denomination);
     }
+
 
     public String getFirmwareVersion() {
         return this.firmwareVersion;
@@ -137,6 +144,20 @@ public class ATMState {
         @Override
         public String toString() { return String.format("[%s] %s - %s", timestamp, eventType, details); }
     }
+
+    public int getCount100() {
+        return this.count100;
+    }
+
+    public int getCount50() {
+        return this.count50;
+    }
+
+    public int getCount20() {
+        return this.count20;
+    }
+
+
 
     public PaperTank getPaperTank() { return paperTank; }
     public boolean isOperational() { return isOperational && !paperTank.isEmpty(); }
